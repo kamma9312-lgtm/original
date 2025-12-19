@@ -1,39 +1,55 @@
-import { useState } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { Link } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { getHabits, addHabit, completeHabit, uncompleteHabit, deleteHabit, getTodayString, Habit } from '@/lib/storage';
 import { toast } from '@/hooks/use-toast';
-import { Plus, CheckCircle2, Circle, Trash2, Target, MessageCircle, Sparkles, Moon, User } from 'lucide-react';
+import { Plus, CheckCircle2, Circle, Trash2, Target, MessageCircle, Sparkles, Moon, User, Loader2 } from 'lucide-react';
 
 const Habits = () => {
-  const [habits, setHabits] = useState<Habit[]>(getHabits());
+  const [habits, setHabits] = useState<Habit[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
   const [isOpen, setIsOpen] = useState(false);
   const [newHabit, setNewHabit] = useState({ title: '', description: '', category: 'health' as const, frequency: 'daily' as const });
   const today = getTodayString();
 
-  const handleAdd = () => {
+  const loadHabits = useCallback(async () => {
+    try {
+      const data = await getHabits();
+      setHabits(data);
+    } catch (error) {
+      console.error('Failed to load habits:', error);
+    } finally {
+      setIsLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    loadHabits();
+  }, [loadHabits]);
+
+  const handleAdd = async () => {
     if (!newHabit.title.trim()) return;
-    addHabit(newHabit);
-    setHabits(getHabits());
+    await addHabit(newHabit);
+    await loadHabits();
     setNewHabit({ title: '', description: '', category: 'health', frequency: 'daily' });
     setIsOpen(false);
     toast({ title: 'Habit added!', description: 'Keep it up! Consistency is key.' });
   };
 
-  const handleToggle = (id: string, isCompleted: boolean) => {
-    if (isCompleted) uncompleteHabit(id);
-    else completeHabit(id);
-    setHabits(getHabits());
+  const handleToggle = async (id: string, isCompleted: boolean) => {
+    if (isCompleted) await uncompleteHabit(id);
+    else await completeHabit(id);
+    await loadHabits();
   };
 
-  const handleDelete = (id: string) => {
-    deleteHabit(id);
-    setHabits(getHabits());
+  const handleDelete = async (id: string) => {
+    await deleteHabit(id);
+    await loadHabits();
     toast({ title: 'Habit removed' });
   };
 
@@ -44,6 +60,14 @@ const Habits = () => {
     social: 'bg-soft-sage-light text-soft-sage',
     learning: 'bg-sunshine-light text-sunshine',
   };
+
+  if (isLoading) {
+    return (
+      <div className="min-h-screen gradient-calm flex items-center justify-center">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen gradient-calm pb-24">
